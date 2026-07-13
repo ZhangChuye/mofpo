@@ -1,0 +1,8 @@
+# BiGym RBY1 FlipSandwich (native 84x84).
+defaults:
+  - _bigym_base
+  - _self_
+
+name: bigym_rby1_flip_sandwich
+task_name: rby1_flip_sandwich
+demos_dir: data/bigym/rby1_flip_sandwich

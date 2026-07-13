@@ -1,0 +1,181 @@
+# Mixture of Frames (MoF) — MoF-MoE: learned router over four frame experts.
+# Paper Table 2 (MoF-MoE). This is the canonical MoF config; the other MoF
+# variants (train_mof_ensemble / train_mof_single_frame / train_mof_ortho_proj)
+# inherit it and override only what differs. Pick any task with `task=<task>`
+# (one self-contained config per task; see mof/config/task/); nothing else needs
+# to be set — task_name, demos_dir and shape_meta all come from the task config.
+defaults:
+  - _self_
+  - task: bigym_rby1_flip_cup
+
+name: mof_moe
+_target_: mof.workspace.train_diffusion_unet_hybrid_workspace.TrainDiffusionUnetHybridWorkspace
+
+exp_name: "default"
+
+task_name: ${task.task_name}
+n_demo: 100
+horizon: 16
+n_obs_steps: 2
+low_dim_obs_horizon: 2
+img_obs_horizon: 1
+n_action_steps: 8
+n_latency_steps: 0
+dataset_obs_steps: ${n_obs_steps}
+past_action_visible: False
+obs_as_global_cond: True
+# Dataset class = mof.dataset.<task.ds_module><dataset_rep_mod>.<task.ds_class><dataset_rep_cls>
+# The task config provides the family (ds_module/ds_class: BiGym vs DexMimicGen);
+# the method picks the dataset variant below (MoF uses the per-frame MoF dataset).
+dataset_rep_mod: _mof
+dataset_rep_cls: MoF
+dataset_target: mof.dataset.${task.ds_module}${dataset_rep_mod}.${task.ds_class}${dataset_rep_cls}
+dataset_path: null
+make_env_fn: mof.env.bigym.factory.make_${task_name}_env
+demos_dir: ${task.demos_dir}
+
+shape_meta: ${task.shape_meta}
+
+# No-op kept for parity with the paper runs (the workspace reads cfg.task.dataset).
+dataset:
+  normalize_rgb: false
+
+policy:
+  _target_: mof.policy.mixture_of_frames_policy.MixtureOfFramesPolicy
+
+  shape_meta: ${shape_meta}
+
+  noise_scheduler:
+    _target_: diffusers.DDIMScheduler
+    num_train_timesteps: 50
+    beta_start: 0.0001
+    beta_end: 0.02
+    beta_schedule: squaredcos_cap_v2
+    clip_sample: True
+    set_alpha_to_one: True
+    steps_offset: 0
+    prediction_type: epsilon
+
+  obs_encoder:
+    _target_: mof.model.vision.timm_obs_encoder.TimmObsEncoder
+    shape_meta: ${shape_meta}
+    model_name: 'resnet18.tv_in1k'
+    pretrained: True
+    frozen: False
+    global_pool: ''
+    feature_aggregation: 'spatial_softmax'
+    position_encording: 'sinusoidal'
+    downsample_ratio: 32
+    # 84x84 (or 224 flipcup) -> 224 -> center-crop 192 -> 76 fed to the encoder.
+    transforms:
+      - _target_: torchvision.transforms.Normalize
+        mean: [0.485, 0.456, 0.406]
+        std: [0.229, 0.224, 0.225]
+      - _target_: torchvision.transforms.Resize
+        size: 224
+        antialias: True
+      - _target_: mof.model.vision.timm_obs_encoder.TrainRandomTestCenterCrop
+        size: 192
+      - _target_: torchvision.transforms.Resize
+        size: 76
+        antialias: True
+    use_group_norm: True
+    share_rgb_model: False
+    imagenet_norm: True
+
+  horizon: ${horizon}
+  n_action_steps: ${eval:'${n_action_steps}+${n_latency_steps}'}
+  n_obs_steps: ${n_obs_steps}
+  num_inference_steps: 16
+  train_diffusion_n_samples: 1
+  obs_as_global_cond: ${obs_as_global_cond}
+  diffusion_step_embed_dim: 128
+  down_dims: [256, 512, 1024]
+  kernel_size: 5
+  n_groups: 8
+  cond_predict_scale: True
+  # --- MoF method params (MoF-MoE) ---
+  enabled_experts: [base_rel_trans, left, right, rel_traj]
+  canonical_space: base_rel_trans
+  router_mode: learned
+  router_hidden_dim: 512
+  router_timestep_embed_dim: 128
+  expert_loss_coef: 1.0
+
+ema:
+  _target_: mof.model.diffusion.ema_model.EMAModel
+  update_after_step: 0
+  inv_gamma: 1.0
+  power: 0.75
+  min_value: 0.0
+  max_value: 0.9999
+
+dataloader:
+  batch_size: 128
+  num_workers: 4
+  shuffle: True
+  pin_memory: True
+  persistent_workers: True
+
+val_dataloader:
+  batch_size: 64
+  num_workers: 4
+  shuffle: False
+  pin_memory: True
+  persistent_workers: True
+
+optimizer:
+  _target_: torch.optim.AdamW
+  lr: 1.0e-4
+  betas: [0.95, 0.999]
+  eps: 1.0e-8
+  weight_decay: 1.0e-6
+
+training:
+  device: "cuda:0"
+  seed: 0
+  debug: False
+  resume: True
+  lr_scheduler: cosine
+  lr_warmup_steps: 500
+  num_epochs: 500
+  gradient_accumulate_every: 1
+  use_ema: True
+  rollout_every: 10
+  checkpoint_every: 10
+  val_every: 1
+  sample_every: 10
+  max_train_steps: null
+  max_val_steps: null
+  tqdm_interval_sec: 1.0
+
+logging:
+  project: diffusion_policy_${task_name}
+  resume: True
+  mode: online
+  name: mof_moe_demo${n_demo}
+  tags: ["${name}", "${task_name}", "${exp_name}"]
+  id: null
+  group: null
+
+checkpoint:
+  topk:
+    monitor_key: test_mean_score
+    mode: max
+    k: 1
+    format_str: 'epoch={epoch:04d}-test_mean_score={test_mean_score:.3f}.ckpt'
+  save_last_ckpt: True
+  save_last_snapshot: False
+
+multi_run:
+  run_dir: data/outputs/${now:%Y.%m.%d}/${now:%H.%M.%S}_${name}_${task_name}
+  wandb_name_base: ${now:%Y.%m.%d-%H.%M.%S}_${name}_${task_name}
+
+hydra:
+  job:
+    override_dirname: ${name}
+  run:
+    dir: data/outputs/${now:%Y.%m.%d}/${now:%H.%M.%S}_${name}_${task_name}
+  sweep:
+    dir: data/outputs/${now:%Y.%m.%d}/${now:%H.%M.%S}_${name}_${task_name}
+    subdir: ${hydra.job.num}

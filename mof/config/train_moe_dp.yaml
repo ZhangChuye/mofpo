@@ -1,0 +1,188 @@
+defaults:
+  - _self_
+  - task: dexmimicgen_two_arm_threading
+
+# Port of the official MoE-DP config (AlanxChen/moedp,
+# moe-dp/moe_dp/config/dp_unet_mlp_moe.yaml + Hammer_Cleanup_T0 task config),
+# with the env-necessary edits documented in
+# `mof/policy/diffusion_unet_policy_moe_dp_official.py`:
+#  * vision backbone is Timm pretrained ResNet18 (resnet18.tv_in1k) with
+#    BN->GN replacement, instead of robomimic's from-scratch ResNet18;
+#  * dex-injected obs keys (base_pos / base_quat / _obs_in_base_frame) are
+#    filtered out before reaching the encoder.
+# The MoE module (n_emb=256 bottleneck, 4*n_emb expert hidden, top-k weight
+# renorm, 2-layer MLP gate, Xavier init, ReLU, per-obs-step routing, aux
+# losses with effective lambda=0.1 / beta=0.01) matches the official release.
+#
+# Diffusion scheduler + UNet trunk are aligned with MoF for fair
+# comparison: DDIM 50 train / 16 inference, down_dims=[256,512,1024]
+# (differs from the upstream MoE-DP defaults of DDPM 100 / [512,1024,2048]).
+
+name: diff_c_pre_moe_dp_official
+_target_: mof.workspace.train_diffusion_unet_hybrid_workspace.TrainDiffusionUnetHybridWorkspace
+
+exp_name: "default"
+
+task_name: ${task.task_name}
+n_demo: 100
+horizon: 16
+n_obs_steps: 2
+low_dim_obs_horizon: 2
+img_obs_horizon: 2
+n_action_steps: 8
+n_latency_steps: 0
+dataset_obs_steps: ${n_obs_steps}
+past_action_visible: False
+obs_as_global_cond: True
+demos_dir: ${task.demos_dir}
+# Used by the BiGym env_runner for eval on bigym tasks (make_<task_name>_env).
+# Unused by the DexMimicGen runner, which builds its env from dataset_path.
+make_env_fn: mof.env.bigym.factory.make_${task_name}_env
+# MoE-DP trains on the rel-traj action representation (train_action_key=rel_action),
+# so it picks the _rel_traj dataset variant; the task config provides the family
+# (BiGym vs DexMimicGen). See train_mof_moe for the composition scheme.
+dataset_rep_mod: _rel_traj
+dataset_rep_cls: RelTraj
+dataset_target: mof.dataset.${task.ds_module}${dataset_rep_mod}.${task.ds_class}${dataset_rep_cls}
+
+shape_meta: ${task.shape_meta}
+
+policy:
+  _target_: mof.policy.diffusion_unet_policy_moe_dp_official.DiffusionUnetMoEDPOfficial
+
+  shape_meta: ${shape_meta}
+
+  noise_scheduler:
+    _target_: diffusers.DDIMScheduler
+    num_train_timesteps: 50
+    beta_start: 0.0001
+    beta_end: 0.02
+    beta_schedule: squaredcos_cap_v2
+    clip_sample: True
+    set_alpha_to_one: True
+    steps_offset: 0
+    prediction_type: epsilon
+
+  horizon: ${horizon}
+  n_action_steps: ${eval:'${n_action_steps}+${n_latency_steps}'}
+  n_obs_steps: ${n_obs_steps}
+  num_inference_steps: 16
+  obs_as_global_cond: ${obs_as_global_cond}
+  # Official MoE-DP visual stream: the robomimic encoder's CropRandomizer
+  # crops crop_shape from the (optionally pre-resized) RGB input.
+  crop_shape: [76, 76]
+  # Resize every RGB key to (size, size) before the encoder. 84 is the native
+  # resolution of every task except FlipCup (224); resizing an 84 image to 84 is
+  # an identity op, while FlipCup's 224 is downscaled so the 76-crop keeps a
+  # sensible field of view. So a single value works for all tasks.
+  pre_resize_image_size: 84
+  diffusion_step_embed_dim: 128
+  down_dims: [256, 512, 1024]
+  kernel_size: 5
+  n_groups: 8
+  cond_predict_scale: True
+  obs_encoder_group_norm: True
+  eval_fixed_crop: True
+  # When true (default), swap robomimic's from-scratch ResNet18 with a
+  # Timm pretrained resnet18.tv_in1k (BN->GN). When false, leave the
+  # encoder exactly as the official release does (random-init ResNet18).
+  pretrain: True
+  # Paper MoE-DP uses the gripper-relative trajectory action: obs are transformed
+  # to base frame for the encoder and the prediction is reconstructed back to
+  # world-frame at inference. ("action" = world-frame absolute, official default.)
+  train_action_key: rel_action
+
+  # MoE — paper MoE-DP setting (N=4, k=4, no aux loss). The upstream official
+  # defaults are N=16, k=2, aux on (lambda=0.1 / beta=0.01); the paper runs the
+  # n4/k4/no-aux recipe, baked here so no overrides are needed.
+  use_MoE: True
+  n_emb: 256
+  gate_dim: 256
+  p_drop_attn: 0.1
+  num_experts: 4
+  top_k: 4
+  boost: False
+  use_aux_loss: False
+  aux_loss_weight: 0.1
+  lambda_balance: 1.0
+  lambda_entropy: 0.1
+
+ema:
+  _target_: mof.model.diffusion.ema_model.EMAModel
+  update_after_step: 0
+  inv_gamma: 1.0
+  power: 0.75
+  min_value: 0.0
+  max_value: 0.9999
+
+dataloader:
+  batch_size: 128
+  num_workers: 8
+  shuffle: True
+  pin_memory: True
+  persistent_workers: False
+  drop_last: True
+
+val_dataloader:
+  batch_size: 128
+  num_workers: 8
+  shuffle: False
+  pin_memory: True
+  persistent_workers: False
+  drop_last: True
+
+optimizer:
+  _target_: torch.optim.AdamW
+  lr: 1.0e-4
+  betas: [0.95, 0.999]
+  eps: 1.0e-8
+  weight_decay: 1.0e-6
+
+training:
+  device: "cuda:0"
+  seed: 0
+  debug: False
+  resume: True
+  lr_scheduler: cosine
+  lr_warmup_steps: 500
+  num_epochs: 500
+  gradient_accumulate_every: 1
+  use_ema: True
+  rollout_every: 10
+  checkpoint_every: 10
+  val_every: 1
+  sample_every: 10
+  max_train_steps: null
+  max_val_steps: null
+  tqdm_interval_sec: 1.0
+
+logging:
+  project: diffusion_policy_${task_name}
+  resume: True
+  mode: online
+  name: moe_dp_official_${task_name}
+  tags: ["${name}", "${task_name}", "${exp_name}"]
+  id: null
+  group: null
+
+checkpoint:
+  topk:
+    monitor_key: test_mean_score
+    mode: max
+    k: 1
+    format_str: 'epoch={epoch:04d}-test_mean_score={test_mean_score:.3f}.ckpt'
+  save_last_ckpt: True
+  save_last_snapshot: False
+
+multi_run:
+  run_dir: data/outputs/${now:%Y.%m.%d}/${now:%H.%M.%S}_${name}_${task_name}
+  wandb_name_base: ${now:%Y.%m.%d-%H.%M.%S}_${name}_${task_name}
+
+hydra:
+  job:
+    override_dirname: ${name}
+  run:
+    dir: data/outputs/${now:%Y.%m.%d}/${now:%H.%M.%S}_${name}_${task_name}
+  sweep:
+    dir: data/outputs/${now:%Y.%m.%d}/${now:%H.%M.%S}_${name}_${task_name}
+    subdir: ${hydra.job.num}

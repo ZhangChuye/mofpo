@@ -1,0 +1,87 @@
+# Shared BiGym (RBY1) task scaffold. Per-task configs inherit this via
+#   defaults: [_bigym_base, _self_]
+# and set only: name, task_name, demos_dir (and, for FlipCup, the 224 image
+# shapes). The default shape_meta below is the native-84 BiGym layout.
+# The dataset class is chosen by the *method* config (train_mof_* / train_dp /
+# train_moe_dp) via dataset_target, which it composes from this task's family
+# tokens (ds_module/ds_class) + the method's action-rep tokens
+# (${dataset_rep_mod}/${dataset_rep_cls}) -> mof.dataset.<ds_module><rep_mod>.<ds_class><rep_cls>
+
+ds_module: bigym_rby1_replay_dataset
+ds_class: BigymRBY1ReplayDataset
+
+shape_meta:
+  obs:
+    head_image:
+      shape: [3, 84, 84]
+      horizon: ${img_obs_horizon}
+      type: rgb
+    left_wrist_image:
+      shape: [3, 84, 84]
+      horizon: ${img_obs_horizon}
+      type: rgb
+    right_wrist_image:
+      shape: [3, 84, 84]
+      horizon: ${img_obs_horizon}
+      type: rgb
+    proprioception_grippers:
+      shape: [2]
+      horizon: ${low_dim_obs_horizon}
+    left_ee_pos:
+      shape: [3]
+      horizon: ${low_dim_obs_horizon}
+    left_ee_quat:
+      shape: [4]
+      horizon: ${low_dim_obs_horizon}
+    right_ee_pos:
+      shape: [3]
+      horizon: ${low_dim_obs_horizon}
+    right_ee_quat:
+      shape: [4]
+      horizon: ${low_dim_obs_horizon}
+    head_site_pos:
+      shape: [3]
+      horizon: ${low_dim_obs_horizon}
+    head_site_quat:
+      shape: [4]
+      horizon: ${low_dim_obs_horizon}
+    base_pos:
+      shape: [3]
+      horizon: ${low_dim_obs_horizon}
+    base_quat:
+      shape: [4]
+      horizon: ${low_dim_obs_horizon}
+  action:
+    shape: [20]
+
+dataset:
+  _target_: ${dataset_target}
+  shape_meta: ${task.shape_meta}
+  demos_dir: ${demos_dir}
+  horizon: ${horizon}
+  pad_before: ${eval:'${n_obs_steps}-1+${n_latency_steps}'}
+  pad_after: ${eval:'${n_action_steps}-1'}
+  n_obs_steps: ${dataset_obs_steps}
+  use_cache: True
+  seed: 42
+  val_ratio: 0.02
+  n_demo: ${n_demo}
+
+env_runner:
+  _target_: mof.env_runner.bigym_image_runner.BigymImageRunner
+  make_env_fn: ${make_env_fn}
+  shape_meta: ${task.shape_meta}
+  n_train: 0
+  n_train_vis: 0
+  n_test: 50
+  n_test_vis: 5
+  test_start_seed: 100000
+  max_steps: ${get_max_steps:${task_name}}
+  n_obs_steps: ${n_obs_steps}
+  n_action_steps: ${n_action_steps}
+  render_obs_key: 'head_image'
+  use_pointcloud_obs: false
+  crf: 22
+  past_action: ${past_action_visible}
+  tqdm_interval_sec: 1.0
+  n_envs: 25

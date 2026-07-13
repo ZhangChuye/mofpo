@@ -1,0 +1,21 @@
+# Single-frame baselines (Table 1): one expert, fixed (trivial) router, no aux
+# loss. Default frame = rel_traj. For the other three frames, override BOTH
+# enabled_experts and canonical_space together:
+#   Left:  policy.enabled_experts=[left]           policy.canonical_space=left
+#   Right: policy.enabled_experts=[right]          policy.canonical_space=right
+#   Base:  policy.enabled_experts=[base_rel_trans] policy.canonical_space=base_rel_trans
+# (Oracle / Worst Frame in Table 1 are per-task aggregates of these four runs.)
+defaults:
+  - train_mof_moe
+  - _self_
+
+name: mof_single_frame
+
+policy:
+  router_mode: fixed_uniform
+  expert_loss_coef: 0.0
+  enabled_experts: [rel_traj]
+  canonical_space: rel_traj
+
+logging:
+  name: mof_single_frame_demo${n_demo}

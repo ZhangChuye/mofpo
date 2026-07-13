@@ -1,0 +1,13 @@
+# MoF-Ensemble (Table 2): uniform fixed weights over the four frame experts
+# (no learned router). Identical to MoF-MoE except router_mode.
+defaults:
+  - train_mof_moe
+  - _self_
+
+name: mof_ensemble
+
+policy:
+  router_mode: fixed_uniform
+
+logging:
+  name: mof_ensemble_demo${n_demo}

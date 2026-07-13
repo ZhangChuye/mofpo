@@ -1,0 +1,15 @@
+# DexMimicGen TwoArmDrawerCleanup (dex hand: gripper qpos 24, action 30).
+defaults:
+  - _dex_base
+  - _self_
+
+name: dexmimicgen_two_arm_drawer_cleanup
+task_name: two_arm_drawer_cleanup
+demos_dir: data/dexmimicgen/two_arm_drawer_cleanup_abs
+
+shape_meta:
+  obs:
+    proprioception_grippers:
+      shape: [24]
+  action:
+    shape: [30]

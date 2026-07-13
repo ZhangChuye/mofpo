@@ -1,0 +1,8 @@
+# BiGym RBY1 DishwasherLoadPlates (native 84x84).
+defaults:
+  - _bigym_base
+  - _self_
+
+name: bigym_rby1_dishwasher_load_plates
+task_name: rby1_dishwasher_load_plates
+demos_dir: data/bigym/rby1_dishwasher_load_plates

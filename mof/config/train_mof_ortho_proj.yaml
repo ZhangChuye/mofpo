@@ -1,0 +1,16 @@
+# Ablation "w/ Ortho Proj" (Table 4): route every rot6d frame transform through
+# the matrix path (Gram-Schmidt orthogonalise -> R @ matrix -> re-encode columns)
+# instead of treating the rot6d columns as raw vectors. Identical to MoF-MoE
+# except the policy class. For the "MoF-Ensemble w/ Ortho Proj" row, also set
+# policy.router_mode=fixed_uniform.
+defaults:
+  - train_mof_moe
+  - _self_
+
+name: mof_ortho_proj
+
+policy:
+  _target_: mof.policy.mixture_of_frames_policy_gram_schmidt.MixtureOfFramesPolicyGramSchmidt
+
+logging:
+  name: mof_ortho_proj_demo${n_demo}

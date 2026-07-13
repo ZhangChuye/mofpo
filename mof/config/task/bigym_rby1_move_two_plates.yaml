@@ -1,0 +1,8 @@
+# BiGym RBY1 MoveTwoPlates (native 84x84).
+defaults:
+  - _bigym_base
+  - _self_
+
+name: bigym_rby1_move_two_plates
+task_name: rby1_move_two_plates
+demos_dir: data/bigym/rby1_move_two_plates

@@ -1,0 +1,8 @@
+# DexMimicGen TwoArmThreePieceAssembly (parallel-jaw: gripper 2, action 20).
+defaults:
+  - _dex_base
+  - _self_
+
+name: dexmimicgen_two_arm_three_piece_assembly
+task_name: two_arm_three_piece_assembly
+demos_dir: data/dexmimicgen/two_arm_three_piece_assembly_abs

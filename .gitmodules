@@ -1,0 +1,3 @@
+[submodule "hommi_moe"]
+	path = hommi_moe
+	url = https://github.com/gsanpark/hommi_moe.git

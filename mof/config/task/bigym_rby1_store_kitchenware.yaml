@@ -1,0 +1,8 @@
+# BiGym RBY1 StoreKitchenware (native 84x84).
+defaults:
+  - _bigym_base
+  - _self_
+
+name: bigym_rby1_store_kitchenware
+task_name: rby1_store_kitchenware
+demos_dir: data/bigym/rby1_store_kitchenware

@@ -1,0 +1,19 @@
+# BiGym RBY1 FlipCup. Unlike the other BiGym tasks, FlipCup is collected and
+# evaluated at 224x224 (the obs encoder still resizes to its 76x76 net input);
+# storing/rendering below ~96px measurably hurts this fine task, so 224 is kept.
+defaults:
+  - _bigym_base
+  - _self_
+
+name: bigym_rby1_flip_cup
+task_name: rby1_flip_cup
+demos_dir: data/bigym/rby1_flip_cup
+
+shape_meta:
+  obs:
+    head_image:
+      shape: [3, 224, 224]
+    left_wrist_image:
+      shape: [3, 224, 224]
+    right_wrist_image:
+      shape: [3, 224, 224]

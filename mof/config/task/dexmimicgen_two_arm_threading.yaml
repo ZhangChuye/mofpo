@@ -1,0 +1,8 @@
+# DexMimicGen TwoArmThreading (parallel-jaw: gripper 2, action 20).
+defaults:
+  - _dex_base
+  - _self_
+
+name: dexmimicgen_two_arm_threading
+task_name: two_arm_threading
+demos_dir: data/dexmimicgen/two_arm_threading_abs
