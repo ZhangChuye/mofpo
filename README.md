@@ -14,8 +14,8 @@ which improves bimanual mobile-manipulation performance over any single frame.
 This repository contains the **simulation** experiments from the paper, on the
 **BiGym** (RBY1) and **DexMimicGen** task suites. The real-world experiments
 (Appendix F, a DiT + HoMMI stack) live in the
-[`hommi_moe`](https://github.com/gsanpark/hommi_moe) submodule — clone with
-`git clone --recurse-submodules`, or `git submodule update --init hommi_moe` in
+[`mof_hommi`](https://github.com/gsanpark/mof_hommi) submodule — clone with
+`git clone --recurse-submodules`, or `git submodule update --init --recursive mof_hommi` in
 an existing checkout.
 
 ---

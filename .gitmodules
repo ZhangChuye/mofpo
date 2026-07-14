@@ -1,3 +1,3 @@
-[submodule "hommi_moe"]
-	path = hommi_moe
-	url = https://github.com/gsanpark/hommi_moe.git
+[submodule "mof_hommi"]
+	path = mof_hommi
+	url = https://github.com/gsanpark/mof_hommi.git
