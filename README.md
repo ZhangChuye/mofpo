@@ -3,6 +3,8 @@
 Official code for **"Mixture of Frames Policy: Multi-Frame Action Denoising for
 Bimanual Mobile Manipulation"**.
 
+<img width="100%" src="https://mofpo.github.io/images/teaser.jpg">
+
 Mixture of Frames (MoF) is a diffusion policy that denoises each action in
 **several reference frames at once** — a base-relative frame, the left and right
 end-effector frames, and a trajectory-relative frame — and fuses the per-frame
