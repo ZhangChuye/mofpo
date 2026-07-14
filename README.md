@@ -49,7 +49,7 @@ the script is `mink==1.1.0`, installed `--no-deps` because it requires
 
 ## Datasets
 
-<img width="100%" src="https://mofpo.github.io/assets/overview_2row_grid_speedmatched_4s.gif">
+<img width="100%" src="assets/overview_2row_grid_speedmatched_4s.png">
 
 The nine demonstration sets are on the HuggingFace Hub
 ([`dian-wang/mof-datasets`](https://huggingface.co/datasets/dian-wang/mof-datasets))
