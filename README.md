@@ -1,4 +1,4 @@
-# Mixture of Frames Policy (MoF)
+# [CoRL 2026] Mixture of Frames Policy (MoFPo)
 
 Official code for **"Mixture of Frames Policy: Multi-Frame Action Denoising for
 Bimanual Mobile Manipulation"**.
@@ -193,6 +193,18 @@ train.py         training entrypoint     eval.py   evaluation entrypoint
 run.sh           single-GPU launch       run_async_eval.sh  launch with async eval
 ```
 
+## Citation
+If you find this work useful, please consider citing our paper:
+
+```bibtex
+@inproceedings{wang2026mixture,
+  title={Mixture of Frames Policy: Multi-Frame Action Denoising for Bimanual Mobile Manipulation},
+  author={Wang, Dian and Park, Jisang and Xu, Xiaomeng and Zhang, Han and Song, Shuran and Bohg, Jeannette},
+  booktitle={10th Annual Conference on Robot Learning},
+  year={2026}
+}
+```
+
 ## License
 
 Released under the MIT license. See [LICENSE](LICENSE).
@@ -203,4 +215,4 @@ Built upon [Diffusion Policy](https://github.com/real-stanford/diffusion_policy)
 The MoE-DP baseline is a faithful port of the official
 [MoE-DP](https://github.com/AlanxChen/moedp) release. Tasks come from
 [BiGym](https://github.com/chernyadev/bigym) and
-[DexMimicGen](https://github.com/NVlabs/dexmimicgen).
+[DexMimicGen](https://github.com/NVlabs/dexmimicgen). 
