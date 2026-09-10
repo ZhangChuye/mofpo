@@ -71,3 +71,18 @@ gradients are streamed to pinned CPU buffers during backward, the EMA copy lives
   held-out episode, outcome in the file name. Produced by `notes/scripts/rollout_video.py`.
 - `data/outputs/<run>/offline_eval/epoch=XXXX/media/*.mp4`: the runner's own head-camera
   recordings for every evaluated episode.
+
+## Depth / point-cloud rollout data (requested 2026-09-10)
+`notes/scripts/rollout_record_depth.py` rolls the trained policy out once with BiGym's `depth=True`
+and `pcd=True` on the three policy cameras and saves
+`data/outputs/sf_right_move_two_plates_seed0/depth_rollout/rby1_move_two_plates_seed100000_success_depth.h5`
+(152 steps, success). Layout (T = 153 incl. the reset observation):
+- `obs/rgb_<cam>` (T,84,84,3) uint8; `obs/depth_<cam>` (T,84,84) float32 metres (MuJoCo depth
+  rendering; sky/far pixels ≈ 54 m); `obs/pcd_<cam>` (T,1024,6) world XYZ + RGB∈[0,1] (BiGym's
+  generator, 3 m cutoff, random subsample).
+- `hires/rgb_<cam>`, `hires/depth_<cam>` at 256×256 for head, left_wrist, right_wrist and the
+  third-person `front_far` camera; `cam/<cam>/pos`, `cam/<cam>/xmat` world camera poses per step.
+- `obs/<low-dim>` (EE poses, head/base pose, grippers, 84-D proprioception), `action` (T,20),
+  `reward`, `task_success`, `done`; intrinsics per camera/resolution in the file attrs
+  (pinhole from fovy = 90°, e.g. 84 px: fx = fy = 42, cx = cy = 41.5).
+- Camera convention is MuJoCo's (looks along −z, y up); see `attrs['camera_convention']`.
