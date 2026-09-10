@@ -11,7 +11,7 @@ def make():
                                torch.nn.Conv1d(1, 4, 5, padding=2), torch.nn.Flatten(), torch.nn.Linear(1024, 20))
 ref = make(); off = copy.deepcopy(ref); ref.to(dev); off.to(dev)
 kw = dict(lr=1e-4, betas=(0.95, 0.999), eps=1e-8, weight_decay=1e-6)
-o_ref = torch.optim.AdamW(ref.parameters(), **kw); o_off = CPUOffloadAdamW(off.parameters(), **kw)
+o_ref = torch.optim.AdamW(ref.parameters(), **kw); o_off = CPUOffloadAdamW(off.parameters(), num_threads=8, **kw)
 accum, steps = 2, 60
 x_all = torch.randn(steps * accum, 8, 64, device=dev); y_all = torch.randn(steps * accum, 8, 20, device=dev)
 def model_loss(model, x, y):

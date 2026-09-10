@@ -21,7 +21,13 @@ from torch.optim import Optimizer
 
 class CPUOffloadAdamW(Optimizer):
     def __init__(self, params: Iterable[torch.Tensor], lr=1e-3, betas=(0.9, 0.999),
-                 eps=1e-8, weight_decay=1e-2, pin_memory=True):
+                 eps=1e-8, weight_decay=1e-2, pin_memory=True, num_threads=None):
+        # num_threads: CPU intra-op threads for the update (and, being process-wide, for the
+        # CPU-resident EMA update the workspace performs right after each step). Forked
+        # dataloader workers stay safe because the datasets call threadpool_limits(1).
+        self.num_threads = num_threads
+        if num_threads:
+            torch.set_num_threads(int(num_threads))
         params = list(params)
         defaults = dict(lr=lr, betas=tuple(betas), eps=eps, weight_decay=weight_decay)
         super().__init__(params, defaults)
@@ -78,7 +84,14 @@ class CPUOffloadAdamW(Optimizer):
             g_in["eps"] = g_out["eps"]
         for m, buf in zip(self._master, self._grad_bufs):
             m.grad = buf
-        self._inner.step()
+        prev_threads = torch.get_num_threads()
+        if self.num_threads:
+            torch.set_num_threads(int(self.num_threads))
+        try:
+            self._inner.step()
+        finally:
+            if self.num_threads:
+                torch.set_num_threads(prev_threads)
         for m, buf in zip(self._master, self._grad_bufs):
             m.grad = None
             buf.zero_()
