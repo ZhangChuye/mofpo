@@ -1,0 +1,11 @@
+# data / caches / outputs (large)
+data/
+src/
+outputs/
+wandb/
+*.ckpt
+*.zarr.zip
+*.lock
+__pycache__/
+*.pyc
+.hydra/

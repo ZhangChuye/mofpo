@@ -398,6 +398,20 @@ class TrainDiffusionUnetHybridAsyncEvalWorkspace(TrainDiffusionUnetHybridWorkspa
                             self.save_checkpoint()
                         if cfg.checkpoint.save_last_snapshot:
                             self.save_snapshot()
+                        # Optionally keep a per-epoch copy (model + EMA, no optimizer) from
+                        # a given epoch on, so the paper's "last-5 checkpoints" protocol can be
+                        # evaluated offline after training (e.g. when the GPU is too small to
+                        # run async rollouts alongside training).
+                        save_epoch_ckpts_from = cfg.checkpoint.get("save_epoch_ckpts_from", None)
+                        if save_epoch_ckpts_from is not None and self.epoch >= int(save_epoch_ckpts_from):
+                            epoch_ckpt_path = pathlib.Path(self.output_dir).joinpath(
+                                "checkpoints", f"epoch={self.epoch:04d}.ckpt"
+                            )
+                            self.save_checkpoint(
+                                path=epoch_ckpt_path,
+                                exclude_keys=tuple(self.exclude_keys) + ("optimizer",),
+                                use_thread=False,
+                            )
 
                         metric_dict = dict()
                         for key, value in step_log.items():
