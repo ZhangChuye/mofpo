@@ -81,7 +81,7 @@ class EMAModel:
                     ema_param.copy_(param.to(dtype=ema_param.dtype).data)
                 else:
                     ema_param.mul_(self.decay)
-                    ema_param.add_(param.data.to(dtype=ema_param.dtype), alpha=1 - self.decay)
+                    ema_param.add_(param.data.to(device=ema_param.device, dtype=ema_param.dtype), alpha=1 - self.decay)
 
         # verify that iterating over module and then parameters is identical to parameters recursively.
         # assert old_all_dataptrs == all_dataptrs

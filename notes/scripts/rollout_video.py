@@ -43,11 +43,11 @@ def third_person():
     renderer.update_scene(data, camera=a.camera); return renderer.render().copy()
 
 def compose(obs, tp, step, status):
-    tiles = [cv2.resize(np.moveaxis((obs[k] * 255).astype(np.uint8), 0, -1), (213, 213), interpolation=cv2.INTER_NEAREST)
+    tiles = [cv2.resize(np.moveaxis((obs[k] * 255).astype(np.uint8), 0, -1), (200, 200), interpolation=cv2.INTER_NEAREST)
              for k in ("head_image", "left_wrist_image", "right_wrist_image")]
     top = np.concatenate(tiles, axis=1); top = cv2.copyMakeBorder(top, 0, 0, 0, 640 - top.shape[1], cv2.BORDER_CONSTANT, value=(0, 0, 0))
     for i, name in enumerate(("head", "left wrist", "right wrist")):
-        cv2.putText(top, name, (i * 213 + 5, 18), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 0), 1, cv2.LINE_AA)
+        cv2.putText(top, name, (i * 200 + 5, 18), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 0), 1, cv2.LINE_AA)
     frame = np.concatenate([top, tp], axis=0)
     cv2.putText(frame, f"{cfg.task_name}  step {step}/{max_steps}  {status}", (5, frame.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2, cv2.LINE_AA)
     return frame

@@ -136,9 +136,12 @@ class TrainDiffusionUnetHybridWorkspace(BaseWorkspace):
 
         # device transfer
         device = torch.device(cfg.training.device)
+        # training.ema_device (default: training.device) lets the EMA copy live on the CPU when
+        # the GPU cannot hold it (used together with the CPU-offload optimizer).
+        ema_device = torch.device(cfg.training.get('ema_device', cfg.training.device))
         self.model.to(device)
         if self.ema_model is not None:
-            self.ema_model.to(device)
+            self.ema_model.to(ema_device)
         optimizer_to(self.optimizer, device)
 
         def _collect_train_metrics():
@@ -193,7 +196,9 @@ class TrainDiffusionUnetHybridWorkspace(BaseWorkspace):
                             lr_scheduler.step()
                         
                         # update ema
-                        if cfg.training.use_ema:
+                        # one EMA update per *optimizer* step (identical to the original
+                        # behaviour when gradient_accumulate_every == 1)
+                        if cfg.training.use_ema and (self.global_step % cfg.training.gradient_accumulate_every == 0):
                             ema.step(self.model)
 
                         # logging
@@ -284,7 +289,8 @@ class TrainDiffusionUnetHybridWorkspace(BaseWorkspace):
                 if (self.epoch % cfg.training.sample_every) == 0:
                     with torch.no_grad():
                         # sample trajectory from training set, and evaluate difference
-                        batch = dict_apply(train_sampling_batch, lambda x: x.to(device, non_blocking=True))
+                        policy_device = next(policy.parameters()).device
+                        batch = dict_apply(train_sampling_batch, lambda x: x.to(policy_device, non_blocking=True))
                         obs_dict = batch['obs']
                         gt_action = batch['action']
                         
