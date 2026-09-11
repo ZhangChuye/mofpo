@@ -64,6 +64,9 @@ gradients are streamed to pinned CPU buffers during backward, the EMA copy lives
   large GPU; first optimizer step uses a single micro-batch (artifact of the original
   accumulation loop); 1 seed.
 - **Paper number:** MoF-MoE on Move 2 Plates = 51.6 ± 4.4 %.
+- Progress: started 2026-09-10 08:25; epoch 149/500 at 2026-09-11 00:17 (6.4 min/epoch, GPU ~46 %
+  busy, the CPU-side AdamW/EMA on 385M params takes the rest). Expected finish ≈ 2026-09-12 13:00,
+  then the same last-5-checkpoint evaluation. Loss curves so far: `loss_curves_move_two_plates.png`.
 - **Result:** _pending_
 
 ## Videos
