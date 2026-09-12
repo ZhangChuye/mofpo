@@ -83,6 +83,7 @@ def main():
     lowdim_keys = [k for k, v in shape_meta["obs"].items() if v.get("type", "low_dim") != "rgb"] + ["proprioception"]
 
     def run_episode(seed):
+        torch.manual_seed(int(cfg.training.seed) + seed)  # reproducible DDIM sampling noise
         env.seed(seed); obs = env.reset(); policy.reset()
         hist = collections.deque([obs] * n_obs, maxlen=n_obs)
         rec = collections.defaultdict(list)

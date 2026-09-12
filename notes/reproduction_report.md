@@ -90,6 +90,13 @@ evaluation above ran with the policy on the CPU: identical seeds, identical simu
 network arithmetic moved. A reboot restores the GPU path.
 
 ## Videos
+**Read the success rates from `offline_eval*/…/eval_log.json`, not from counting video files.**
+`rollout_video.py` replays single episodes, while the evaluation batches 6–8 environments in one
+forward pass; the DDIM sampling noise therefore differs, and the same checkpoint + env seed can
+succeed in one and fail in the other. On the MoF-MoE final checkpoint the two paths agreed on 5 of
+the 10 shared seeds (evaluation 7/10, videos 4/10, both samples of a 60 % policy). Both scripts now
+seed torch per episode so each is at least reproducible on re-run.
+
 - `data/outputs/<run>/videos/*.mp4`: third-person camera + the three policy cameras, one file per
   held-out episode, outcome in the file name. Produced by `notes/scripts/rollout_video.py`.
 - `data/outputs/<run>/offline_eval/epoch=XXXX/media/*.mp4`: the runner's own head-camera

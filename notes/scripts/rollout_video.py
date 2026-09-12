@@ -62,6 +62,11 @@ def compose(obs, tp, step, status):
 
 results = {}
 for seed in a.seeds:
+    # Seed torch per episode so the DDIM sampling noise is reproducible. Note that these videos are
+    # ONE sample of a stochastic policy: the same checkpoint and env seed can succeed here and fail
+    # in eval_ckpts.py (which batches many envs in a single forward pass and therefore draws
+    # different noise). Success *rates* must come from eval_ckpts.py, not from counting videos.
+    torch.manual_seed(int(cfg.training.seed) + seed)
     env.seed(seed); obs = env.reset(); policy.reset()
     hist = collections.deque([obs] * n_obs, maxlen=n_obs)
     frames = [compose(obs, third_person(), 0, "")]
