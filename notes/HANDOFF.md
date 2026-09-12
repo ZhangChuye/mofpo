@@ -29,9 +29,12 @@ is still 580.173.02**. Consequence: the *running* training process is unaffected
 context and is still progressing), but **any new CUDA process fails** with
 `CUDA error 804: forward compatibility was attempted on non supported HW`.
 
-So on this box, after the MoF-MoE run finishes, evaluation **cannot start** until a reboot
-(`sudo reboot`, then check `nvidia-smi` works). `chain3_after_mof_moe.sh` now detects this, skips the
-eval, and prints the instruction instead of burning hours. This is one more reason to move.
+EGL rendering still works (checked 2026-09-12), so `chain3_after_mof_moe.sh` detects the missing CUDA
+and falls back to running the **policy on the CPU** with 6 env workers; the rollouts are the same
+seeds and the same simulator, only the network arithmetic moves to the CPU, so the success numbers
+are comparable (slower, and not bitwise identical to a GPU pass). A reboot (`sudo reboot`, then check
+`nvidia-smi`) restores GPU evaluation, and the script can simply be re-run afterwards. This is one
+more reason to move.
 
 ---
 
