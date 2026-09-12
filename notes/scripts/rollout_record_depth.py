@@ -53,8 +53,16 @@ def main():
     out = pathlib.Path(a.out_dir); out.mkdir(parents=True, exist_ok=True)
     payload = torch.load(open(a.ckpt, "rb"), pickle_module=dill, map_location="cpu")
     cfg = payload["cfg"]
+    OmegaConf.set_struct(cfg, False)
+    # Evaluation never steps the optimizer. Building it would allocate the CPU-offload
+    # optimizer's master/gradient buffers (~3 GB for MoF-MoE), so swap in a stock AdamW
+    # (state is allocated lazily) and skip loading the optimizer state.
+    if "optimizer" in cfg and str(cfg.optimizer.get("_target_", "")).endswith("CPUOffloadAdamW"):
+        cfg.optimizer._target_ = "torch.optim.AdamW"
+        cfg.optimizer.pop("num_threads", None)
+        cfg.optimizer.pop("pin_memory", None)
     assert cfg.task_name == "rby1_move_two_plates", cfg.task_name
-    ws = hydra.utils.get_class(cfg._target_)(cfg, output_dir=str(out / "_ws")); ws.load_payload(payload, exclude_keys=None, include_keys=None)
+    ws = hydra.utils.get_class(cfg._target_)(cfg, output_dir=str(out / "_ws")); ws.load_payload(payload, exclude_keys=("optimizer",), include_keys=None)
     policy = ws.ema_model if cfg.training.use_ema else ws.model
     device = torch.device(a.device); policy.to(device); policy.eval()
     er = cfg.task.env_runner; n_obs, n_act, max_steps = int(er.n_obs_steps), int(er.n_action_steps), int(er.max_steps)

@@ -6,7 +6,7 @@ recorded, not the per-episode results). Usage:
   python notes/scripts/eval_ckpts.py --run_dir data/outputs/<run> --ckpts checkpoints/epoch=0460.ckpt ... \
       --n_envs 8 --out_dir data/outputs/<run>/offline_eval
 """
-import os, sys, json, pathlib, argparse, time
+import os, sys, json, pathlib, argparse, time, gc
 os.environ.setdefault("MUJOCO_GL", "egl"); os.environ.setdefault("PYOPENGL_PLATFORM", "egl")
 sys.path.insert(0, os.getcwd())
 import torch, dill, hydra, wandb, numpy as np
@@ -42,11 +42,28 @@ def main():
         if a.n_test is not None: cfg.task.env_runner.n_test = a.n_test
         if a.max_steps is not None: cfg.task.env_runner.max_steps = a.max_steps
         cfg.task.env_runner.n_test_vis = a.n_test_vis if a.n_test_vis is not None else cfg.task.env_runner.n_test
+        # Evaluation never steps the optimizer. Building it would allocate the CPU-offload
+        # optimizer's master/gradient buffers (~3 GB for MoF-MoE), so swap in a stock AdamW
+        # (state is allocated lazily) and skip loading the optimizer state.
+        if "optimizer" in cfg and str(cfg.optimizer.get("_target_", "")).endswith("CPUOffloadAdamW"):
+            cfg.optimizer._target_ = "torch.optim.AdamW"
+            cfg.optimizer.pop("num_threads", None)
+            cfg.optimizer.pop("pin_memory", None)
         cls = hydra.utils.get_class(cfg._target_)
         workspace: BaseWorkspace = cls(cfg, output_dir=str(out_dir))
-        workspace.load_payload(payload, exclude_keys=None, include_keys=None)
+        workspace.load_payload(payload, exclude_keys=("optimizer",), include_keys=None)
         policy = workspace.ema_model if cfg.training.use_ema else workspace.model
         policy.to(torch.device(a.device)); policy.eval()
+        # Release everything the rollouts do not need before spawning env workers: the raw
+        # checkpoint payload (3 GB for MoF-MoE) and the copy of the model we are not evaluating.
+        ckpt_epoch = int(dill.loads(payload["pickles"]["epoch"])) if "epoch" in payload.get("pickles", {}) else None
+        payload = None
+        if policy is workspace.ema_model:
+            workspace.model = None
+        else:
+            workspace.ema_model = None
+        workspace.optimizer = None
+        gc.collect()
         t0 = time.time()
         env_runner = hydra.utils.instantiate(cfg.task.env_runner, output_dir=str(out_dir))
         torch.manual_seed(int(cfg.training.seed)); np.random.seed(int(cfg.training.seed))
@@ -55,12 +72,13 @@ def main():
         log = {}
         for k, v in runner_log.items():
             log[k] = v._path if isinstance(v, wandb.sdk.data_types.video.Video) else (float(v) if isinstance(v, (np.floating, float, int)) else v)
-        log["epoch"] = int(payload["pickles"] and dill.loads(payload["pickles"]["epoch"])) if "epoch" in payload["pickles"] else None
+        log["epoch"] = ckpt_epoch
         log["eval_wall_time_s"] = time.time() - t0
         json.dump(log, (out_dir / "eval_log.json").open("w"), indent=2, sort_keys=True)
         summary[tag] = log["test/mean_score"]
         print(f"{tag}: test/mean_score = {log['test/mean_score']:.3f}  ({log['eval_wall_time_s']/60:.1f} min)", flush=True)
-        del env_runner, workspace, policy, payload
+        del env_runner, workspace, policy
+        gc.collect()
     if torch.cuda.is_available(): torch.cuda.empty_cache()
     scores = list(summary.values())
     summary["mean_over_ckpts"] = float(np.mean(scores)); summary["n_ckpts"] = len(scores)

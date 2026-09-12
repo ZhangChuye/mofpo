@@ -64,10 +64,30 @@ gradients are streamed to pinned CPU buffers during backward, the EMA copy lives
   large GPU; first optimizer step uses a single micro-batch (artifact of the original
   accumulation loop); 1 seed.
 - **Paper number:** MoF-MoE on Move 2 Plates = 51.6 ± 4.4 %.
-- Progress: started 2026-09-10 08:25; epoch 149/500 at 2026-09-11 00:17 (6.4 min/epoch, GPU ~46 %
-  busy, the CPU-side AdamW/EMA on 385M params takes the rest). Expected finish ≈ 2026-09-12 13:00,
-  then the same last-5-checkpoint evaluation. Loss curves so far: `loss_curves_move_two_plates.png`.
-- **Result:** _pending_
+- Training: 2026-09-10 08:25 → 2026-09-12 13:22, 500 epochs in 53 h at 6.3–6.4 min/epoch (the GPU sat
+  at ~46 % — the CPU-side AdamW/EMA over 385 M parameters was the bottleneck, as expected for the
+  offload path). Final train loss 0.0006, no errors, all five evaluation checkpoints written.
+- Evaluation ran on the CPU (this host lost the ability to start new CUDA processes on 2026-09-11,
+  see §"Host driver note"), 50 held-out episodes per checkpoint, 6 env workers, ~61 min per
+  checkpoint.
+- **Result (seed 0, 50 episodes per checkpoint):**
+
+  | checkpoint | ep 460 | ep 470 | ep 480 | ep 490 | ep 499 (final) | **mean** |
+  |---|---|---|---|---|---|---|
+  | success | 56 % | 60 % | 44 % | 60 % | 60 % | **56.0 %** |
+
+  **Paper (3 seeds): 51.6 ± 4.4 %.** This run lands 4.4 points *above* the paper's mean, i.e. within
+  one standard error, on a single seed. Against the single-frame *Right* baseline trained and
+  evaluated identically on this machine (38.8 %), MoF-MoE gains **+17.2 points**; the paper's own
+  gap between MoF-MoE and the Right frame on this task is +4.4 points. The qualitative claim of the
+  paper — multi-frame denoising beats a fixed single frame — reproduces clearly here.
+
+## Host driver note (2026-09-11)
+The machine's NVIDIA userspace libraries were upgraded to 580.178.04 while the loaded kernel module
+stayed at 580.173.02, so new CUDA processes fail with error 804 (`forward compatibility was attempted
+on non supported HW`). The running training was unaffected. EGL rendering still works, so the
+evaluation above ran with the policy on the CPU: identical seeds, identical simulator, only the
+network arithmetic moved. A reboot restores the GPU path.
 
 ## Videos
 - `data/outputs/<run>/videos/*.mp4`: third-person camera + the three policy cameras, one file per

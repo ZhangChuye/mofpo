@@ -1,6 +1,6 @@
 # MoF (Mixture of Frames Policy) reproduction — handoff to Skynet
 
-Written 2026-09-11 14:20 EDT, status lines refreshed 2026-09-12 00:20 EDT, on the Alienware box (`chuye-Alienware-Aurora-R11`).
+Written 2026-09-11 14:20 EDT, status lines refreshed 2026-09-12 18:35 EDT, on the Alienware box (`chuye-Alienware-Aurora-R11`).
 Everything below is verified on that machine unless marked *estimate*.
 
 Companion documents in this repo:
@@ -19,8 +19,8 @@ Companion documents in this repo:
 | Paper baseline run (single-frame *Right*, MoveTwoPlates, seed 0, 500 epochs) | ✅ done, evaluated: **38.8 %** vs paper 47.2 ± 1.7 % |
 | Rollout videos of that policy (10 episodes) | ✅ `data/outputs/sf_right_move_two_plates_seed0/videos/` |
 | Depth + point-cloud rollout dataset (1 episode) | ✅ `…/depth_rollout/*.h5` |
-| **MoF-MoE run (the actual method)** | 🟡 running since 2026-09-10 08:25 (epoch 376/500 at 2026-09-12 00:15), ETA Sat 2026-09-12 ≈ 13:30 |
-| MoF-MoE evaluation + videos | ⏳ armed (`notes/scripts/chain3_after_mof_moe.sh`); runs on CPU automatically because of the driver issue below |
+| **MoF-MoE run (the actual method)** | ✅ done: 500 epochs in 53 h (2026-09-10 08:25 → 2026-09-12 13:22), evaluated: **56.0 %** vs paper 51.6 ± 4.4 % |
+| MoF-MoE evaluation + videos | ✅ 5 checkpoints × 50 episodes on CPU (61 min each); videos in `…/mof_moe_move_two_plates_seed0_offload/videos/` |
 | Released checkpoints from the authors | ❌ **none exist** — everything must be trained |
 
 ### ⚠️ Blocker on the current machine (2026-09-11)
@@ -327,8 +327,8 @@ Suggested: `rsync -av --progress data/outputs/sf_right_move_two_plates_seed0/{vi
 
 ## 9. Open items / next steps
 
-1. **Finish MoF-MoE on MoveTwoPlates** and evaluate it — the one number that tests the paper's claim
-   on this machine (target 51.6 %, and it should beat the 38.8 % single-frame baseline).
+1. ~~Finish MoF-MoE on MoveTwoPlates and evaluate it~~ — **done: 56.0 %** (paper 51.6 ± 4.4 %),
+   +17.2 points over the single-frame baseline trained identically here.
 2. **More seeds.** The paper averages 3 seeds; everything here is seed 0. The 30–48 % checkpoint
    spread on the baseline says single-seed numbers are worth ±5 points at least.
 3. **The other four BiGym tasks** — same command, different `task=`. Dishwasher is the paper's
